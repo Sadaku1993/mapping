@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!--データを保存-->
+<launch>
+    <node pkg="mapping" type="data_save" name="data_save" output="screen">
+        <remap from="/cloud" to="/velodyne_points"/>
+        <remap from="/odom" to="/tinypower/odom"/>
+        <param name="target_frame" type="string" value="/map" />
+        <param name="source_frame" type="string" value="/velodyne" />
+        <param name="threshold" type="double" value="2.0" />
+    </node>
+</launch>
