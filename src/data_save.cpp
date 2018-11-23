@@ -36,7 +36,6 @@ class DataSaver{
         double threshold;
 
         std::string package_path;
-        std::string device;
         int count;
 
     public:
@@ -131,11 +130,11 @@ void DataSaver::save_process()
     pcl::fromROSMsg(pc2, cloud);
     cloud.width = 1;
     cloud.height = cloud.points.size();
-    pcl::io::savePCDFile(package_path+"/data/cloud/"+device+"/"+file_name+".pcd", cloud);
+    pcl::io::savePCDFile(package_path+"/data/cloud/"+file_name+".pcd", cloud);
 
     // tf
     std::ofstream log;
-    log.open(package_path+"/data/tf/"+device+"/"+file_name+".csv" ,std::ios::trunc);
+    log.open(package_path+"/data/odometry/"+file_name+".csv" ,std::ios::trunc);
     log << x   << ", " 
         << y   << ", "
         << z   << ", "

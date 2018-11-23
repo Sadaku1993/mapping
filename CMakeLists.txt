@@ -59,3 +59,9 @@ target_link_libraries(data_save
     ${catkin_LIBRARIES}
     ${PCL_LIBRARIES}
 )
+
+add_executable(rm_cluster src/rm_cluster.cpp)
+target_link_libraries(rm_cluster
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)

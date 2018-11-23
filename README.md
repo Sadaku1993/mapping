@@ -13,7 +13,7 @@
 
 # How to Use
 
-## Make data directory for pointcloud ext.
+## Make directory for storing pointcloud etc.
 
 ```bash
 $ roscd mapping
@@ -21,20 +21,10 @@ $ chmod a+x bash.sh
 $ ./bash.sh
 ```
 
-```bash
-mapping/
-    CMakeLists.txt
-    src/
-    include/
-    package.xml
-    README.md
-    data/
-```
-
 ## Save PointCloud and Odometry Data
 
 ```bash
-$ roslaunch mapping savedata.launch
+$ roslaunch mapping data_save.launch
 ```
 
 ```bash
@@ -45,9 +35,17 @@ mapping/
     package.xml
     README.md
     data/
-        pointcloud/ <--- pointcloud data are saved here
-        odometry/   <--- odometry data are saverd here
+        cloud/ <--- raw pointcloud data are saved here
+        tf/    <--- odometry data are saverd here
 ```
+
+## Remove Obstacle
+
+```bash
+$ roslaunch mapping remove_obstacle.launch
+```
+
+obstacle removed pointcloud are saved at mapping/data/rm_obstacle.
 
 ## Normal Estimation
 In order to gicp we need to calcrate pointcloud's normal information.
