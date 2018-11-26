@@ -23,26 +23,20 @@ author:
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <mapping/function.h>
+#include <mapping/normal_estimation.h>
+#include <mapping/cluster.h>
+
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
-struct Cluster{
-    float x; 
-    float y; 
-    float z;
-    float width;
-    float height;
-    float depth;
-    float curvature;
-    Eigen::Vector3f min_p;
-    Eigen::Vector3f max_p;
-};
-
-template<typename T_p, typename T_c, typename T_ptr>
+template<typename T_p>
 class RmCluster{
     private:
         ros::NodeHandle nh;
         std::string package_path;
+        std::string cloud_path;
+        std::string save_path;
         // min max algorithm parameter
         double cell_size;
         int grid_dimentions;
@@ -56,21 +50,27 @@ class RmCluster{
 
     public:
         RmCluster();
-        int file_count_boost(const boost::filesystem::path& root);
-        bool loadCloud(T_ptr& cloud, std::string file_name);                     
-        void min_max(T_ptr& cloud, T_ptr& ground_cloud, T_ptr& obstacle_cloud);
-        void getClusterInfo(T_ptr& pt, Cluster& cluster);
-        void normal_estimation(T_ptr& input_cloud, T_ptr& normal_cloud);        
-        void remove_cluster(T_ptr& input_cloud, T_ptr& remove_cloud);           
-        void saveCloud(T_ptr& cloud, int file_num);                              
+
+        Function<T_p> Fc;
+        NormalEstimation<T_p> Ne;
+        Clustering<T_p> Ci;
+
+        void min_max(typename pcl::PointCloud<T_p>::Ptr& cloud, 
+                     typename pcl::PointCloud<T_p>::Ptr& ground_cloud, 
+                     typename pcl::PointCloud<T_p>::Ptr& obstacle_cloud);
+        void remove_cluster(typename pcl::PointCloud<T_p>::Ptr& input_cloud, 
+                            typename pcl::PointCloud<T_p>::Ptr& remove_cloud);           
         void main();
 };
 
-template<typename T_p, typename T_c, typename T_ptr>
-RmCluster<T_p, T_c, T_ptr>::RmCluster()
+template<typename T_p>
+RmCluster<T_p>::RmCluster()
     : nh("~")
 {
     package_path = ros::package::getPath("mapping");
+    nh.param<std::string>("cloud_path", cloud_path, "/data/cloud");
+    nh.param<std::string>("save_path", save_path, "/data/remove");
+   
     // min max algorithm parameter
     nh.param<double>("cell_size", cell_size, 0.25);
     nh.param<int>("grid_dimentions", grid_dimentions, 500);
@@ -81,41 +81,17 @@ RmCluster<T_p, T_c, T_ptr>::RmCluster()
     nh.param<int>("min_size", min_size, 100);
     nh.param<int>("max_size", max_size, 1500);
     // normal estimation parameter
-    nh.param<double>("search_radius", search_radius, 0.30);
+    nh.param<double>("search_radius", search_radius, 0.80);
 
-}
-
-// path内にデータがいくつがあるか確認
-template<typename T_p, typename T_c, typename T_ptr>
-int RmCluster<T_p, T_c, T_ptr>::file_count_boost(const boost::filesystem::path& root) {
-    namespace fs = boost::filesystem;
-    if (!fs::exists(root) || !fs::is_directory(root)) return 0;
-    int result = 0;
-    fs::directory_iterator last;
-    for (fs::directory_iterator pos(root); pos != last; ++pos) {
-        ++result;
-        if (fs::is_directory(*pos)) result += file_count_boost(pos->path());
-    }
-    return result;
-}
-
-
-// Cloudデータを読み込み
-template<typename T_p, typename T_c, typename T_ptr>
-bool RmCluster<T_p, T_c, T_ptr>::loadCloud(T_ptr& cloud, std::string file_name)
-{
-    if(pcl::io::loadPCDFile<T_p> (file_name, *cloud) == -1){
-        std::cout<<file_name<<" is none"<<std::endl;
-        return false;
-    }else{
-        std::cout<<"Load "<<file_name<<" is success"<<std::endl;
-        return true;
-    }
+    cloud_path.insert(0, package_path);
+    save_path.insert(0, package_path);
 }
 
 // min max algorithm
-template<typename T_p, typename T_c, typename T_ptr>
-void RmCluster<T_p, T_c, T_ptr>::min_max(T_ptr& cloud, T_ptr& ground_cloud, T_ptr& obstacle_cloud)
+template<typename T_p>
+void RmCluster<T_p>::min_max(typename pcl::PointCloud<T_p>::Ptr& cloud, 
+                             typename pcl::PointCloud<T_p>::Ptr& ground_cloud, 
+                             typename pcl::PointCloud<T_p>::Ptr& obstacle_cloud)
 {
     float min[grid_dimentions][grid_dimentions];
     float max[grid_dimentions][grid_dimentions];
@@ -160,59 +136,14 @@ void RmCluster<T_p, T_c, T_ptr>::min_max(T_ptr& cloud, T_ptr& ground_cloud, T_pt
     }
 }
 
-// Normal Estimation
-template<typename T_p, typename T_c, typename T_ptr>
-void RmCluster<T_p, T_c, T_ptr>::normal_estimation(T_ptr& cloud, T_ptr& normal_cloud)
-{
-    pcl::NormalEstimationOMP<T_p, pcl::Normal> ne;
-    ne.setInputCloud(cloud);
-    typename pcl::search::KdTree<T_p>::Ptr tree (new pcl::search::KdTree<T_p> ());
-    ne.setSearchMethod (tree);
-    pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-    ne.setRadiusSearch (search_radius);
-    ne.compute(*normals);
-
-    T_p tmp;
-    for(size_t i=0;i<cloud->points.size();i++)
-    {
-		tmp.x = cloud->points[i].x;
-		tmp.y = cloud->points[i].y;
-		tmp.z = cloud->points[i].z;
-		if(!std::isnan(normals->points[i].normal_x)){
-			tmp.normal_x = normals->points[i].normal_x;
-		}
-		else{
-			tmp.normal_x = 0.0;
-		}
-		if(!std::isnan(normals->points[i].normal_y)){
-			tmp.normal_y = normals->points[i].normal_y;
-		}
-		else{
-			tmp.normal_y = 0.0;
-		}
-		if(!std::isnan(normals->points[i].normal_z)){
-			tmp.normal_z = normals->points[i].normal_z;
-		}
-		else{
-			tmp.normal_z = 0.0;
-		}
-		if(!std::isnan(normals->points[i].curvature)){
-			tmp.curvature = normals->points[i].curvature;
-		}
-		else{
-			tmp.curvature = 0.0;
-		}
-		normal_cloud->points.push_back(tmp);
-	}
-}
-
 // Remove Cluster
-template<typename T_p, typename T_c, typename T_ptr>
-void RmCluster<T_p, T_c, T_ptr>::remove_cluster(T_ptr& cloud, T_ptr& cloud_removed)
+template<typename T_p>
+void RmCluster<T_p>::remove_cluster(typename pcl::PointCloud<T_p>::Ptr& cloud, 
+                                    typename pcl::PointCloud<T_p>::Ptr& cloud_removed)
 {
     //Downsample//
     pcl::VoxelGrid<T_p> vg;
-    T_ptr ds_cloud (new T_c);
+    typename pcl::PointCloud<T_p>::Ptr ds_cloud(new pcl::PointCloud<T_p>);
     vg.setInputCloud (cloud);  
     vg.setLeafSize (leaf_size, leaf_size, leaf_size);
     vg.filter (*ds_cloud);
@@ -247,12 +178,12 @@ void RmCluster<T_p, T_c, T_ptr>::remove_cluster(T_ptr& cloud, T_ptr& cloud_remov
 
     // check cluster size
     for(const auto& it : cluster_indices){
-        T_ptr cluster_cloud(new T_c);
+        typename pcl::PointCloud<T_p>::Ptr cluster_cloud(new pcl::PointCloud<T_p>);
         for(const auto& pit : it.indices){
             cluster_cloud->points.push_back(ds_cloud->points[pit]);
         }
         Cluster cluster;
-        getClusterInfo(cluster_cloud, cluster);
+        Ci.getClusterInfo(cluster_cloud, cluster);
         
         // pick up human size cluster
         if(0.3<cluster.width && cluster.width<1.0 && 
@@ -287,101 +218,43 @@ void RmCluster<T_p, T_c, T_ptr>::remove_cluster(T_ptr& cloud, T_ptr& cloud_remov
     }
 }
 
-// getClusterInfo
-template<typename T_p, typename T_c, typename T_ptr>
-void RmCluster<T_p, T_c, T_ptr>::getClusterInfo(T_ptr& pt, Cluster& cluster)
-{
-    Eigen::Vector3f centroid;
-    centroid[0]=pt->points[0].x;
-    centroid[1]=pt->points[0].y;
-    centroid[2]=pt->points[0].z;
-    
-    Eigen::Vector3f min_p;
-    min_p[0]=pt->points[0].x;
-    min_p[1]=pt->points[0].y;
-    min_p[2]=pt->points[0].z;
-
-    Eigen::Vector3f max_p;
-    max_p[0]=pt->points[0].x;
-    max_p[1]=pt->points[0].y;
-    max_p[2]=pt->points[0].z;
-
-    for(size_t i=1;i<pt->points.size();i++){
-        centroid[0]+=pt->points[i].x;
-        centroid[1]+=pt->points[i].y;
-        centroid[2]+=pt->points[i].z;
-        if (pt->points[i].x<min_p[0]) min_p[0]=pt->points[i].x;
-        if (pt->points[i].y<min_p[1]) min_p[1]=pt->points[i].y;
-        if (pt->points[i].z<min_p[2]) min_p[2]=pt->points[i].z;
-
-        if (pt->points[i].x>max_p[0]) max_p[0]=pt->points[i].x;
-        if (pt->points[i].y>max_p[1]) max_p[1]=pt->points[i].y;
-        if (pt->points[i].z>max_p[2]) max_p[2]=pt->points[i].z;
-    }
-
-    cluster.x=centroid[0]/(float)pt->points.size();
-    cluster.y=centroid[1]/(float)pt->points.size();
-    cluster.z=centroid[2]/(float)pt->points.size();
-    cluster.depth  = max_p[0]-min_p[0];
-    cluster.width  = max_p[1]-min_p[1];
-    cluster.height = max_p[2]-min_p[2]; 
-    cluster.min_p = min_p;
-    cluster.max_p = max_p;
-}
-
-
-// save PointCloud
-template<typename T_p, typename T_c, typename T_ptr>
-void RmCluster<T_p, T_c, T_ptr>::saveCloud(T_ptr& cloud, int file_num)
-{
-    std::string file_name = std::to_string(file_num);
-    std::string save_path = package_path+"/data/remove/"+file_name+".pcd";
-    
-    cloud->width = 1;
-    cloud->height = cloud->points.size();
-
-    pcl::io::savePCDFile(save_path, *cloud);
-}
-
 // main Function
-template<typename T_p, typename T_c, typename T_ptr>
-void RmCluster<T_p, T_c, T_ptr>::main()
+template<typename T_p>
+void RmCluster<T_p>::main()
 {
-    std::cout<<"file path:"<<package_path<<std::endl;
-
-    std::string cloud_path = package_path + "/data/cloud";
-
-    int file_size = file_count_boost(cloud_path.c_str());
+    int file_size = Fc.file_count_boost(cloud_path.c_str());
     std::cout<<"file size:"<<file_size<<std::endl;
 
     for(int i=0;i<file_size;i++){
-        T_ptr cloud(new T_c);
+        typename pcl::PointCloud<T_p>::Ptr cloud(new pcl::PointCloud<T_p>);
         std::string cloud_name = cloud_path+"/"+std::to_string(i)+".pcd";
+        std::cout<<"step : "<<cloud_name<<std::endl;
         
         // loadPointCloud
-        bool cloud_flag = loadCloud(cloud, cloud_name);
+        bool cloud_flag = Fc.loadCloud(cloud, cloud_name);
         if(!cloud_flag) break;
 
         // Min-Max Algorithm
-        T_ptr ground_cloud(new T_c);
-        T_ptr obstacle_cloud(new T_c);
+        typename pcl::PointCloud<T_p>::Ptr ground_cloud(new pcl::PointCloud<T_p>);
+        typename pcl::PointCloud<T_p>::Ptr obstacle_cloud(new pcl::PointCloud<T_p>);
         min_max(cloud, ground_cloud, obstacle_cloud);
 
         // Remove Cluster
-        T_ptr remove_cloud(new T_c);
+        typename pcl::PointCloud<T_p>::Ptr remove_cloud(new pcl::PointCloud<T_p>);
         remove_cluster(obstacle_cloud, remove_cloud);
 
         // mergePointCloud
-        T_ptr merge_cloud(new T_c);
+        typename pcl::PointCloud<T_p>::Ptr merge_cloud(new pcl::PointCloud<T_p>);
         *merge_cloud += *ground_cloud;
         *merge_cloud += *remove_cloud;
 
         // Normal Estimation
-        T_ptr normal_cloud(new T_c);
-        normal_estimation(merge_cloud, normal_cloud);
+        typename pcl::PointCloud<T_p>::Ptr normal_cloud(new pcl::PointCloud<T_p>);
+        Ne.normal_estimation(merge_cloud, normal_cloud);
 
         // savePointCloud
-        saveCloud(merge_cloud, i);
+        std::string save_name = save_path+"/"+std::to_string(i)+".pcd";
+        Fc.saveCloud(merge_cloud, save_name);
     }
 }
 
@@ -389,9 +262,7 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "remove_cluster");
 
-    RmCluster <pcl::PointXYZINormal, 
-               pcl::PointCloud<pcl::PointXYZINormal>, 
-               pcl::PointCloud<pcl::PointXYZINormal>::Ptr> rc;
+    RmCluster <pcl::PointXYZINormal> rc;
 
     rc.main();
 

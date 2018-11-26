@@ -45,7 +45,7 @@ catkin_package(
 )
 
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -62,6 +62,18 @@ target_link_libraries(data_save
 
 add_executable(rm_cluster src/rm_cluster.cpp)
 target_link_libraries(rm_cluster
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
+add_executable(transformer src/transform.cpp)
+target_link_libraries(transformer
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
+add_executable(gicp src/gicp.cpp)
+target_link_libraries(gicp
     ${catkin_LIBRARIES}
     ${PCL_LIBRARIES}
 )

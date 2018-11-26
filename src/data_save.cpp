@@ -55,7 +55,7 @@ DataSaver::DataSaver()
     nh.getParam("target_frame", target_frame);
     nh.getParam("source_frame", source_frame);
     nh.param<double>("threshold", threshold, 2.0);
-    distance = 0;
+    distance = threshold;
     odom_flag = false;
 
     package_path = ros::package::getPath("mapping");
@@ -126,7 +126,7 @@ void DataSaver::save_process()
     printf("tf:x:%.2f y:%.2f z:%.2f roll:%.2f pitch:%.2f yaw:%.2f\n", x, y, z, roll, pitch, yaw);
 
     // save PointCloud
-    pcl::PointCloud<pcl::PointXYZ> cloud;
+    pcl::PointCloud<pcl::PointXYZI> cloud;
     pcl::fromROSMsg(pc2, cloud);
     cloud.width = 1;
     cloud.height = cloud.points.size();
@@ -134,7 +134,7 @@ void DataSaver::save_process()
 
     // tf
     std::ofstream log;
-    log.open(package_path+"/data/odometry/"+file_name+".csv" ,std::ios::trunc);
+    log.open(package_path+"/data/tf/"+file_name+".csv" ,std::ios::trunc);
     log << x   << ", " 
         << y   << ", "
         << z   << ", "
