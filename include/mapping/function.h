@@ -107,5 +107,3 @@ void Function<T_p>::transform_pointcloud(typename pcl::PointCloud<T_p>::Ptr& clo
 {
     pcl_ros::transformPointCloud(*cloud, *trans_cloud, tf);
 }
-
-

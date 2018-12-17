@@ -8,6 +8,7 @@
 
 #include <mapping/function.h>
 #include <mapping/normal_estimation.h>
+#include <mapping/util.h>
 
 void print4x4Matrix (const Eigen::Matrix4f & matrix)
 {
@@ -18,6 +19,8 @@ void print4x4Matrix (const Eigen::Matrix4f & matrix)
   printf ("Translation vector :\n");
   printf ("t = < %6.3f, %6.3f, %6.3f >\n", matrix (0, 3), matrix (1, 3), matrix (2, 3));
 }
+
+void quat2mat(
 
 struct Transform{
     double x;

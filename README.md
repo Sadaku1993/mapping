@@ -58,7 +58,7 @@ $ roslaunch mapping normal_estimation.launch
 ## Generalised Iterative Closest Point
 
 ```bash
-$ roslaunch mapping gicp.launch
+$ rosrun mapping gicp
 ```
 
 ## Loop Closing
