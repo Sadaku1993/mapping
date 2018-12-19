@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   tf
+  tf_conversions
 )
 
 ## System dependencies are found with CMake's conventions
@@ -74,6 +75,12 @@ target_link_libraries(transformer
 
 add_executable(gicp src/gicp.cpp)
 target_link_libraries(gicp
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
+add_executable(function_test src/test.cpp)
+target_link_libraries(function_test
     ${catkin_LIBRARIES}
     ${PCL_LIBRARIES}
 )

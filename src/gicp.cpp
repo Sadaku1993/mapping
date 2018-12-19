@@ -10,27 +10,6 @@
 #include <mapping/normal_estimation.h>
 #include <mapping/util.h>
 
-void print4x4Matrix (const Eigen::Matrix4f & matrix)
-{
-  printf ("Rotation matrix :\n");
-  printf ("    | %6.3f %6.3f %6.3f | \n", matrix (0, 0), matrix (0, 1), matrix (0, 2));
-  printf ("R = | %6.3f %6.3f %6.3f | \n", matrix (1, 0), matrix (1, 1), matrix (1, 2));
-  printf ("    | %6.3f %6.3f %6.3f | \n", matrix (2, 0), matrix (2, 1), matrix (2, 2));
-  printf ("Translation vector :\n");
-  printf ("t = < %6.3f, %6.3f, %6.3f >\n", matrix (0, 3), matrix (1, 3), matrix (2, 3));
-}
-
-void quat2mat(
-
-struct Transform{
-    double x;
-    double y;
-    double z;
-    double roll;
-    double pitch;
-    double yaw;
-};
-
 template<typename T_p>
 class Gicp{
     private:
@@ -43,26 +22,16 @@ class Gicp{
         Gicp();
 
         Function<T_p> Fc;
+        Util Ul;
 
         void gicp(typename pcl::PointCloud<T_p>::Ptr& source_cloud, 
                   typename pcl::PointCloud<T_p>::Ptr& target_cloud, 
                   Eigen::Matrix4f& transformation_matrix);
-        void accuracy(tf::Transform source_frame,
-                      tf::Transform target_frame,
-                      Eigen::Matrix4f gicp_matrix,
-                      Eigen::Matrix4f& matrix);
+        void odom_trans(tf::Transform source_frame,
+                        tf::Transform target_frame,
+                        tf::Transform& transform);
         void main();
 };
-
-
-// template<> 
-// void Gicp<pcl::PointXYZINormal>::icp(pcl::PointCloud<pcl::PointXYZINormal>::Ptr& source_cloud,
-//                                      pcl::PointCloud<pcl::PointXYZINormal>::Ptr& target_cloud,
-//                                      Eigen::Matrix4f& transform_matrix)
-// {
-//     std::cout<<"special"<<std::endl;
-// }
-
 
 template<typename T_p>
 Gicp<T_p>::Gicp()
@@ -94,14 +63,12 @@ void Gicp<T_p>::gicp(typename pcl::PointCloud<T_p>::Ptr& source_cloud,
     gicp.align(Final);
 
     transformation_matrix = gicp.getFinalTransformation();
-    print4x4Matrix(transformation_matrix);
 }
 
 template<typename T_p>
-void Gicp<T_p>::accuracy(tf::Transform source_transform,
-                         tf::Transform target_transform,
-                         Eigen::Matrix4f gicp_matrix,
-                         Eigen::Matrix4f& matrix)
+void Gicp<T_p>::odom_trans(tf::Transform source_transform,
+                           tf::Transform target_transform,
+                           tf::Transform& transform)
 {
     tf::Vector3 source = source_transform.getOrigin();
     tf::Vector3 target = target_transform.getOrigin();
@@ -111,7 +78,6 @@ void Gicp<T_p>::accuracy(tf::Transform source_transform,
     tf::Matrix3x3(source_transform.getRotation()).getRPY(s_roll, s_pitch, s_yaw);
     tf::Matrix3x3(target_transform.getRotation()).getRPY(t_roll, t_pitch, t_yaw);
     
-    tf::Transform transform;
     tf::Vector3 vector(target.x() - source.x(), 
                        target.y() - source.y(), 
                        target.z() - source.z());
@@ -120,14 +86,6 @@ void Gicp<T_p>::accuracy(tf::Transform source_transform,
                                                             t_yaw - s_yaw);
     transform.setOrigin(vector);
     transform.setRotation(quaternion);
-    
-    double x = transform.getOrigin().x();
-    double y = transform.getOrigin().y();
-    double z = transform.getOrigin().z();
-    double roll, pitch, yaw;
-    tf::Matrix3x3(transform.getRotation()).getRPY(roll, pitch, yaw);
-    std::cout<<"x:"<<x<<" y:"<<y<<" z:"<<z
-             <<"roll:"<<roll<<" picth:"<<pitch<<" yaw:"<<yaw<<std::endl;
 }
 
 
@@ -167,12 +125,29 @@ void Gicp<T_p>::main()
         Fc.transform_pointcloud(source_cloud, transform_source_cloud, source_transform);
         Fc.transform_pointcloud(target_cloud, transform_target_cloud, target_transform);
 
-        // icp
-        Eigen::Matrix4f transformation_matrix;
-        gicp(target_cloud, source_cloud, transformation_matrix);
+        printf("\n");
 
-        Eigen::Matrix4f matrix;
-        accuracy(source_transform, target_transform, transformation_matrix, matrix);
+        // gicp
+        Eigen::Matrix4f gicp_matrix;
+        tf::Transform gicp_transform;
+        gicp(target_cloud, source_cloud, gicp_matrix);
+        gicp_transform = Ul.eigen2tf(gicp_matrix);
+        std::cout<<"GICP"<<std::endl;
+        Ul.printTF(gicp_matrix);
+        // Ul.printTF(gicp_transform);
+
+        printf("\n");
+
+        // odometry trasnform
+        tf::Transform odom_transform;
+        Eigen::Matrix4f odom_matrix;
+        odom_trans(source_transform, target_transform, odom_transform);
+        odom_matrix = Ul.tf2eigen(odom_transform);
+        std::cout<<"Odometry Transform"<<std::endl;
+        Ul.printTF(odom_transform);
+        // Ul.printTF(odom_matrix);
+
+        printf("\n");
     }
 }
 
