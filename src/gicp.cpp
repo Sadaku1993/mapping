@@ -1,14 +1,25 @@
+/* gicp.cpp
+ *
+ * save the relative coordinates between nodes 
+ * and the absolute coordinates of each node
+ *
+ * author Yudai Sadakuni
+ */
+
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <tf/tf.h>
+#include <tf/transform_broadcaster.h>
 #include <pcl/registration/icp.h>
 #include <pcl/registration/gicp.h>
 
 #include <mapping/function.h>
 #include <mapping/normal_estimation.h>
 #include <mapping/util.h>
+
+#include <fstream>
 
 template<typename T_p>
 class Gicp{
@@ -17,7 +28,8 @@ class Gicp{
         std::string package_path;
         std::string cloud_path;
         std::string tf_path;
-        std::string save_path;
+        std::string relative_path;
+        std::string absolute_path;
     public:
         Gicp();
 
@@ -40,11 +52,13 @@ Gicp<T_p>::Gicp()
     package_path = ros::package::getPath("mapping");
     nh.param<std::string>("cloud_path", cloud_path, "/data/remove");
     nh.param<std::string>("tf_path", tf_path, "/data/tf");
-    nh.param<std::string>("save_path", save_path, "/data/trans_cloud");
+    nh.param<std::string>("relative_path", relative_path, "/data/relative_path");
+    nh.param<std::string>("absolute_path", absolute_path, "/data/absolute_path");
 
     cloud_path.insert(0, package_path);
     tf_path.insert(0, package_path);
-    save_path.insert(0, package_path);
+    relative_path.insert(0, package_path);
+    absolute_path.insert(0, package_path);
 }
 
 template<typename T_p>
@@ -98,8 +112,34 @@ void Gicp<T_p>::main()
 
     std::cout<<"file size"<<file_size<<std::endl;
 
+    std::ofstream log;
+
+    // relative coordinates save
+    log.open(relative_path + "/" + std::to_string(0) + ".csv", std::ios::trunc);
+    log << "EDGE_SE3:QUAT" <<","<< 0   <<","<< 0   <<","
+        << 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 1.0 << ","
+        << 1.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","
+        << 1.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","
+        << 1.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","
+        << 1.0 <<","<< 0.0 <<","<< 0.0 <<","
+        << 1.0 <<","<< 0.0 <<","
+        << 1.0;
+    log.close();
+
+    // absolute coordinates save
+    log.open(absolute_path + "/" + std::to_string(0) + ".csv", std::ios::trunc);
+    log << "VERTEX_SE3:QUAT" <<","<< 0 <<","
+        << 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 1.0;
+    log.close();
+
+    // 積算
+    Eigen::Matrix4f integration_matrix = Eigen::Matrix4f::Identity();
+
     for(int i=0;i<file_size-1;i++){
-        std::cout<<"node:"<<i<<" --- "<<i+1<<std::endl;
+        std::cout << "\033[2J"; //画面クリア
+        printf("\033[%d;%dH", 1, 1); //カーソル位置を、高さ1行目、横1行目に移動
+        
+        std::cout<<"node:"<<i<<" --- "<<i+1<<std::endl<<std::endl;
         typename pcl::PointCloud<T_p>::Ptr source_cloud(new pcl::PointCloud<T_p>);
         typename pcl::PointCloud<T_p>::Ptr target_cloud(new pcl::PointCloud<T_p>);
         tf::Transform source_transform;
@@ -143,14 +183,58 @@ void Gicp<T_p>::main()
         Eigen::Matrix4f odom_matrix;
         odom_trans(source_transform, target_transform, odom_transform);
         odom_matrix = Ul.tf2eigen(odom_transform);
-        std::cout<<"Odometry Transform"<<std::endl;
+        std::cout<<"Odometry"<<std::endl;
         Ul.printTF(odom_transform);
         // Ul.printTF(odom_matrix);
 
         printf("\n");
+
+        // Integrate transform matrix
+        integration_matrix = integration_matrix * gicp_matrix;
+        Eigen::Matrix3f rotation_matrix;
+        rotation_matrix << integration_matrix(0, 0), integration_matrix(0, 1), integration_matrix(0, 2),
+                           integration_matrix(1, 0), integration_matrix(1, 1), integration_matrix(1, 2),
+                           integration_matrix(2, 0), integration_matrix(2, 1), integration_matrix(2, 2);
+        Eigen::Quaternionf quaternion;
+        quaternion = Ul.mat2quat(rotation_matrix);
+
+        printf("Integration transform matrix\n");
+        printf(" Transform vector : \n");
+        printf(" t = < %6.3f %6.3f %6.3f >\n", integration_matrix(0, 3), integration_matrix(1, 3), integration_matrix(2, 3) );
+        printf(" Quaternion : \n");
+        printf(" q = < %6.3f %6.3f %6.3f %6.3f >\n", quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
+
+        // relative
+        log.open(relative_path + "/" + std::to_string(i+1) + ".csv", std::ios::trunc);
+        log << "EDGE_SE3:QUAT" <<","<< i+1 <<","<< i   <<","
+            << gicp_transform.getOrigin().x() <<","
+            << gicp_transform.getOrigin().y() <<"," 
+            << gicp_transform.getOrigin().z() <<","
+            << gicp_transform.getRotation().x() <<","
+            << gicp_transform.getRotation().y() <<","
+            << gicp_transform.getRotation().z() <<","
+            << gicp_transform.getRotation().w() <<","
+            << 1.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","
+            << 1.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","
+            << 1.0 <<","<< 0.0 <<","<< 0.0 <<","<< 0.0 <<","
+            << 1.0 <<","<< 0.0 <<","<< 0.0 <<","
+            << 1.0 <<","<< 0.0 <<","
+            << 1.0;
+        log.close();
+
+        // absulute
+        log.open(absolute_path + "/" + std::to_string(i+1) + ".csv", std::ios::trunc);
+        log << "VERTEX_SE3:QUAT" <<","<< i+1 << ","
+            << integration_matrix(0, 3) <<","
+            << integration_matrix(1, 3) <<","
+            << integration_matrix(2, 3) <<","
+            << quaternion.x() <<","
+            << quaternion.y() <<","
+            << quaternion.z() <<","
+            << quaternion.w();
+        log.close();
     }
 }
-
 
 
 int main(int argc, char** argv)
