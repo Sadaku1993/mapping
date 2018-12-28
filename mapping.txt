@@ -1,0 +1,43 @@
+roslaunch velodyne_pointcloud 32e_points.launch
+
+roslaunch perfect_velodyne normal_estimation.launch
+
+roslaunch human_detection human_for_3dmap.launch
+
+
+ディレクトリ内にmapとcloudsの名前のディレクトリを用意
+
+rosrun scan_match gicp_geo > bfr.csv
+
+rosrun scan_match buffer_geo
+idx offset = 0
+DIST = (だいたい1.3)
+
+
+bag再生
+
+gicp_geoとbuffer_geoを切る
+
+
+graph_slam3dでaft.csvが作成される
+
+
+rosrun scan_match gicp_for_loop
+
+
+rosrun scan_match loop_detector
+sleep = 3
+DISTANCE = (だいたい2)
+start -> 0
+.
+.
+.
+.
+.
+2
+となったら終了
+
+
+rosrun scan_match map_integratorでmapディレクトリにmap_0.pcdが保存される
+
+完成！
