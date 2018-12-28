@@ -2,14 +2,16 @@
 
 # Requirement
 
-- ros(kinetic)
-- PCL1.8
+- ROS Kinetic
+- PCL 1.8
+- [g2o](https://github.com/RainerKuemmerle/g2o)
 
 # Set Up
 
 1. ROS Kinetic
-2. PCL1.8
-3. velodyne package
+2. PCL 1.8
+3. [velodyne package](http://wiki.ros.org/ja/velodyne)
+4. [g2o](https://github.com/RainerKuemmerle/g2o)
 
 # How to Use
 
@@ -59,6 +61,14 @@ $ roslaunch mapping normal_estimation.launch
 
 ```bash
 $ rosrun mapping gicp
+```
+
+gicp results are saved at /data/relative_path and /data/absolute_path
+
+## Generate Graph Optimization(g2o)
+
+```bash
+$ roslaunch mapping g2o
 ```
 
 ## Loop Closing
