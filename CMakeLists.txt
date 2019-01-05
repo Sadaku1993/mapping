@@ -37,8 +37,6 @@ endif()
 find_package(Eigen3 REQUIRED COMPONENTS system)
 include_directories(${Eigen_INCLUDE_DIRS})
 
-find_package(G2O)
-
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES mapping
