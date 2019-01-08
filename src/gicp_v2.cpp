@@ -114,10 +114,8 @@ void Gicp<T_p>::main()
 
     std::cout<<"file size"<<file_size<<std::endl;
 
-    std::ofstream log;
-
     // relative coordinates save
-    ofstrem ofs("bfr.csv", ios::trunc);
+    std::ofstream ofs("bfr.csv", std::ios::trunc);
     ofs << "EDGE_SE3:QUAT" <<" "<< 0   <<" "<< 0   <<" "
         << 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 1.0 << " "
         << 1.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "
