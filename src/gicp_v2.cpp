@@ -114,6 +114,10 @@ void Gicp<T_p>::main()
 
     std::cout<<"file size"<<file_size<<std::endl;
 
+    // absolute coordinates save
+    ofs << "VERTEX_SE3:QUAT" <<" "<< 0 <<" "
+        << 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 1.0 << std::endl;
+
     // relative coordinates save
     std::ofstream ofs("bfr.csv", std::ios::trunc);
     ofs << "EDGE_SE3:QUAT" <<" "<< 0   <<" "<< 0   <<" "
@@ -124,10 +128,6 @@ void Gicp<T_p>::main()
         << 1.0 <<" "<< 0.0 <<" "<< 0.0 <<" "
         << 1.0 <<" "<< 0.0 <<" "
         << 1.0 << std::endl;
-
-    // absolute coordinates save
-    ofs << "VERTEX_SE3:QUAT" <<" "<< 0 <<" "
-        << 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 1.0 << std::endl;
 
     // 積算
     Eigen::Matrix4f integration_matrix = Eigen::Matrix4f::Identity();
@@ -201,6 +201,17 @@ void Gicp<T_p>::main()
         printf(" Quaternion : \n");
         printf(" q = < %6.3f %6.3f %6.3f %6.3f >\n", quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
 
+        // absulute
+        ofs << "VERTEX_SE3:QUAT" <<" "<< i+1 << " "
+            << integration_matrix(0, 3) <<" "
+            << integration_matrix(1, 3) <<" "
+            << integration_matrix(2, 3) <<" "
+            << quaternion.x() <<" "
+            << quaternion.y() <<" "
+            << quaternion.z() <<" "
+            << quaternion.w()
+            << std::endl;
+
         // relative
         ofs << "EDGE_SE3:QUAT" <<" "<< i+1 <<" "<< i <<" "
             << gicp_transform.getOrigin().x() <<" "
@@ -217,16 +228,6 @@ void Gicp<T_p>::main()
             << 1.0 <<" "<< 0.0 <<" "
             << 1.0 << std::endl;
 
-        // absulute
-        ofs << "VERTEX_SE3:QUAT" <<" "<< i+1 << " "
-            << integration_matrix(0, 3) <<" "
-            << integration_matrix(1, 3) <<" "
-            << integration_matrix(2, 3) <<" "
-            << quaternion.x() <<" "
-            << quaternion.y() <<" "
-            << quaternion.z() <<" "
-            << quaternion.w()
-            << std::endl;
     }
     ofs.close();
 }
