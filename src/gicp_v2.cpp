@@ -218,7 +218,6 @@ void Gicp<T_p>::main()
             << 1.0 <<" "<< 0.0 <<" "<< 0.0 <<" "
             << 1.0 <<" "<< 0.0 <<" "
             << 1.0;
-        log.close();
 
         // absulute
         ofs << "VERTEX_SE3:QUAT" <<" "<< i+1 << " "
