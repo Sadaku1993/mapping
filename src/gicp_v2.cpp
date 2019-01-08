@@ -215,7 +215,7 @@ void Gicp<T_p>::main()
             << std::endl;
 
         // relative
-        ofs << "EDGE_SE3:QUAT" <<" "<< i+1 <<" "<< i <<" "
+        ofs << "EDGE_SE3:QUAT" <<" "<< i <<" "<< i+1 <<" "
             << gicp_transform.getOrigin().x() <<" "
             << gicp_transform.getOrigin().y() <<" " 
             << gicp_transform.getOrigin().z() <<" "
