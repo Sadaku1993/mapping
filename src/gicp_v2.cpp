@@ -225,7 +225,7 @@ void Gicp<T_p>::main()
             << quaternion.x() <<" "
             << quaternion.y() <<" "
             << quaternion.z() <<" "
-            << quaternion.w();
+            << quaternion.w()
             << std::endl;
     }
     ofs.close();
