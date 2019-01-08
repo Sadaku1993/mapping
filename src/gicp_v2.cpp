@@ -123,11 +123,11 @@ void Gicp<T_p>::main()
         << 1.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "
         << 1.0 <<" "<< 0.0 <<" "<< 0.0 <<" "
         << 1.0 <<" "<< 0.0 <<" "
-        << 1.0;
+        << 1.0 << std::endl;
 
     // absolute coordinates save
     ofs << "VERTEX_SE3:QUAT" <<" "<< 0 <<" "
-        << 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 1.0;
+        << 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 1.0 << std::endl;
 
     // 積算
     Eigen::Matrix4f integration_matrix = Eigen::Matrix4f::Identity();
@@ -215,7 +215,7 @@ void Gicp<T_p>::main()
             << 1.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "
             << 1.0 <<" "<< 0.0 <<" "<< 0.0 <<" "
             << 1.0 <<" "<< 0.0 <<" "
-            << 1.0;
+            << 1.0 << std::endl;
 
         // absulute
         ofs << "VERTEX_SE3:QUAT" <<" "<< i+1 << " "
@@ -226,6 +226,7 @@ void Gicp<T_p>::main()
             << quaternion.y() <<" "
             << quaternion.z() <<" "
             << quaternion.w();
+            << std::endl;
     }
     ofs.close();
 }
