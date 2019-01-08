@@ -78,6 +78,12 @@ target_link_libraries(gicp
     ${PCL_LIBRARIES}
 )
 
+add_executable(gicp_v2 src/gicp_v2.cpp)
+target_link_libraries(gicp_v2
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
 add_executable(function_test src/test.cpp)
 target_link_libraries(function_test
     ${catkin_LIBRARIES}
