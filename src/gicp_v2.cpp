@@ -114,12 +114,14 @@ void Gicp<T_p>::main()
 
     std::cout<<"file size"<<file_size<<std::endl;
 
+
+    std::ofstream ofs("bfr.csv", std::ios::trunc);
+    
     // absolute coordinates save
     ofs << "VERTEX_SE3:QUAT" <<" "<< 0 <<" "
         << 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 1.0 << std::endl;
 
     // relative coordinates save
-    std::ofstream ofs("bfr.csv", std::ios::trunc);
     ofs << "EDGE_SE3:QUAT" <<" "<< 0   <<" "<< 0   <<" "
         << 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 1.0 << " "
         << 1.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "<< 0.0 <<" "
