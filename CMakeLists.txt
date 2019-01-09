@@ -89,3 +89,9 @@ target_link_libraries(function_test
     ${catkin_LIBRARIES}
     ${PCL_LIBRARIES}
 )
+
+add_executable(loop_detector src/loop_detector.cpp)
+target_link_libraries(loop_detector
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)

@@ -44,23 +44,24 @@ mapping/
 ## Remove Obstacle
 
 ```bash
-$ roslaunch mapping remove_obstacle.launch
+$ roslaunch mapping remove_cluster.launch
 ```
 
-obstacle removed pointcloud are saved at mapping/data/rm_obstacle.
-
-## Normal Estimation
-In order to gicp we need to calcrate pointcloud's normal information.
-Use pcl function.
-
 ```bash
-$ roslaunch mapping normal_estimation.launch
+mapping/
+    CMakeLists.txt
+    src/
+    include/
+    package.xml
+    README.md
+    data/
+        remove/ <-- pointcloud removed obstacle are saved here
 ```
 
 ## Generalised Iterative Closest Point
 
 ```bash
-$ rosrun mapping gicp
+$ rosrun mapping gicp_v2
 ```
 
 gicp results are saved at /data/relative_path and /data/absolute_path

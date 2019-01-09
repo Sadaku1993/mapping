@@ -21,6 +21,10 @@
 
 #include <fstream>
 
+#include <unistd.h>
+#include <sys/types.h>
+#include <pwd.h>
+
 using namespace std;
 
 template<typename T_p>
@@ -30,8 +34,6 @@ class Gicp{
         std::string package_path;
         std::string cloud_path;
         std::string tf_path;
-        std::string relative_path;
-        std::string absolute_path;
     public:
         Gicp();
 
@@ -54,13 +56,9 @@ Gicp<T_p>::Gicp()
     package_path = ros::package::getPath("mapping");
     nh.param<std::string>("cloud_path", cloud_path, "/data/remove");
     nh.param<std::string>("tf_path", tf_path, "/data/tf");
-    nh.param<std::string>("relative_path", relative_path, "/data/relative_path");
-    nh.param<std::string>("absolute_path", absolute_path, "/data/absolute_path");
 
     cloud_path.insert(0, package_path);
     tf_path.insert(0, package_path);
-    relative_path.insert(0, package_path);
-    absolute_path.insert(0, package_path);
 }
 
 template<typename T_p>
@@ -113,9 +111,13 @@ void Gicp<T_p>::main()
     int file_size = Fc.file_count_boost(cloud_path.c_str());
 
     std::cout<<"file size"<<file_size<<std::endl;
-
-
-    std::ofstream ofs("bfr.csv", std::ios::trunc);
+    
+    // bfr.csv is save at home directory
+    struct passwd *pw = getpwuid(getuid());
+    const char *homedir = pw->pw_dir;
+    std::string file_path = std::string(homedir) + "/bfr.csv";
+    
+    std::ofstream ofs(file_path, std::ios::trunc);
     
     // absolute coordinates save
     ofs << "VERTEX_SE3:QUAT" <<" "<< 0 <<" "
