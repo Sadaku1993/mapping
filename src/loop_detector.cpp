@@ -24,6 +24,8 @@
 
 #include <mapping/util.h>
 
+#include <tf/tf.h>
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
@@ -45,12 +47,11 @@ class LoopDetector{
         ros::NodeHandle nh;
 
         std::string package_path;
-        std::string aft_file;
 
         double distance;
         double dist;
 
-        std::vector< Eigen::Matrix4f > poses;
+        std::vector< tf::Transform > transforms;
 
         Util ul;
 
@@ -66,7 +67,6 @@ LoopDetector::LoopDetector()
 {
     package_path = ros::package::getPath("mapping");
 
-    nh.param<std::string>("aft_file", aft_file, "aft.csv");
     nh.param<double>("distance", distance, 5.0);
     nh.param<double>("dist", dist, 20);
 }
@@ -85,28 +85,23 @@ void LoopDetector::load(std::string file_path)
         std::vector<std::string> strvec = split(line, ' ');
         if(strvec.at(0) != "VERTEX_SE3:QUAT")
             continue;
-        
-        Eigen::Vector3f euler(std::stof(strvec.at(2)),
+
+        tf::Transform tf;
+        tf::Vector3 tf_vector(std::stof(strvec.at(2)),
                               std::stof(strvec.at(3)),
                               std::stof(strvec.at(4)));
-        Eigen::Quaternionf quaternion(std::stof(strvec.at(5)),
-                                      std::stof(strvec.at(6)),
-                                      std::stof(strvec.at(7)),
-                                      std::stof(strvec.at(8)));
-        
-        Eigen::Matrix4f matrix = Eigen::Matrix4f::Identity();
-        matrix(0, 3) = euler(0);
-        matrix(1, 3) = euler(1);
-        matrix(2, 3) = euler(2);
-        matrix.block(0, 0, 3, 3) = ul.quat2mat(quaternion);
-
-        poses.push_back(matrix);
+        tf::Quaternion tf_quaternion(std::stof(strvec.at(5)),
+                                  std::stof(strvec.at(6)),
+                                  std::stof(strvec.at(7)),
+                                  std::stof(strvec.at(8)));
+        tf.setOrigin(tf_vector);
+        tf.setRotation(tf_quaternion);
+        transforms.push_back(tf);
     }
 }
 
 void LoopDetector::main()
 {
-
     // bfr.csv and aft.csv are saved at home directory
     struct passwd *pw = getpwuid(getuid());
     const char *homedir = pw->pw_dir;
@@ -115,70 +110,38 @@ void LoopDetector::main()
 
     load(aft_path);
 
-    std::cout << poses.size() << std::endl;
-    std::cout << poses.front().size() << std::endl;
+    std::cout << transforms.size() << std::endl;
 
-    for(size_t i=0;i<poses.size();i++){
-        
+    for(size_t i=0;i<transforms.size();i++){
+
         size_t id = 0;
         float min_dist = INFINITY;
-        for(size_t j=0;j<poses.size();j++){
+        for(size_t j=0;j<transforms.size();j++){
             if(i==j) continue;
-            float delta_x = poses[i](0, 3) - poses[j](0, 3);
-            float delta_y = poses[i](1, 3) - poses[j](1, 3);
-            float delta_z = poses[i](2, 3) - poses[j](2, 3);
+            float delta_x = transforms[i].getOrigin().x() - transforms[j].getOrigin().x();
+            float delta_y = transforms[i].getOrigin().y() - transforms[j].getOrigin().y();
+            float delta_z = transforms[i].getOrigin().z() - transforms[j].getOrigin().z();
             float delta = sqrt(delta_x*delta_x + delta_y*delta_y + delta_z*delta_z);
             if(delta<min_dist){
                 id = j;
                 min_dist = delta;
             }
         }
-
+        
         if(distance<min_dist) continue;
-
         std::cout<< i <<" "<< id <<" "<< min_dist << std::endl;
-
-        Eigen::Matrix4f T = poses[id].inverse() * poses[i];
-        std::cout<<"T = "<< std::endl << T << std::endl;
     }
 
-    {{{
-    /*
-    std::vector< std::vector<double> > data;
-    data.assign(poses.size(), std::vector<double>(poses.size(), INFINITY));
+    std::string mv = "mv "+aft_path+' '+bfr_path;
+    std::cout<<mv<<std::endl;
+    std::system(mv.c_str());
 
-    for(size_t i=0;i<data.size();i++){
-        for(size_t j=0;j<data.front().size();j++){
-            if(i==j) continue;
-            double delta_x = poses[i](0,3) - poses[j](0,3);
-            double delta_y = poses[i](1,3) - poses[j](1,3);
-            double delta_z = poses[i](2,3) - poses[j](2,3);
-            float delta = sqrt(delta_x*delta_x + delta_y*delta_y + delta_z*delta_z);
-            data[i][j] = delta;
-        }
-    }
+    std::string g2o = std::string(homedir)+"/g2o/bin/tutorial_slam3d";
+    std::cout<<g2o<<std::endl;
+    std::system(g2o.c_str());
 
-    std::vector< int > min_node(data.size(), 0);
-    for(size_t i=0;i<data.size();i++){
-        double min = data[i][0];
-        for(size_t j=1;j<data[i].size();j++){
-            if(data[i][j]<min)
-            {
-                min_node[i] = j;
-                min = data[i][j];
-            }
-        }
-    }
-
-    for(size_t i=0;i<min_node.size();i++)
-        std::cout<<i<<" : "<<min_node[i]<<std::endl;
-    */
-    }}}
-
-    poses.clear();
+    transforms.clear();
     load(aft_path);
-    std::cout << poses.size() << std::endl;
-    std::cout << poses.front().size() << std::endl;
 }
 
 int main(int argc, char** argv)
